@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Rakuten programming test</title>
+  <!-- jQuery -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+
+      // attach Event Listener for the file upload
+      document.getElementById('fileUpload').addEventListener('change', upload, false);
+
+      // Method that checks that the browser supports the HTML5 File API
+      function browserSupportFileUpload () {
+          let isCompatible = false;
+          if (window.File && window.FileReader && window.FileList && window.Blob) {
+            isCompatible = true;
+          }
+          return isCompatible;
+      }
+
+      function checkDuplicateId(k, i) {
+        let duplicated = false;
+        let seen = {};
+
+        i.map(function(item) {
+          let itemPropertyName = item[k];
+          if (itemPropertyName in seen) {
+            seen[itemPropertyName].duplicate = true;
+            item.duplicate = true;
+            duplicated = true;
+            $('#result').html('');
+            $('#result').html('<span class="badge badge-warning">Error</span> Rule #1 : No duplicate shops allowed in the file. Please check the value and try it again');
+          } else {
+            seen[itemPropertyName] = item;
+            delete item.duplicate;
+          }
+        });
+
+        return duplicated;
+      }
+
+      // Return date formatted yyyyMMdd using prototype
+      Date.prototype.yyyymmdd = function() {
+        var mm = this.getMonth() + 1; // getMonth() is zero-based
+        var dd = this.getDate();
+
+        return [this.getFullYear(),
+                (mm>9 ? '' : '0') + mm,
+                (dd>9 ? '' : '0') + dd
+               ].join('');
+      }
+
+      function checkDateValidation(k, i) {
+        let valid = false;
+        let d = new Date();
+
+        i.map(function(item) {
+          let endDate = item[k];
+          if (endDate < d.yyyymmdd()) {
+            item.invalidDate = true;
+            valid = true;
+            $('#result').html('');
+            $('#result').html('<span class="badge badge-warning">Error</span> Rule #2 : Start date can be any date (past or future). End Date must be in future only.');
+          }
+        });
+
+        return valid;
+      }
+
+      function convertDataToTable(data) {
+        var rows = data.split(/\r?\n|\r/);
+        var table = '<table class="table table-bordered">';
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i].split(",");
+          table += '<tr>';
+          for (var c = 0; c < row.length; c++) {
+            if (c === 0) {
+              table += '<th>' + row[c] + '</th>';
+            } else {
+              table += '<td>' + row[c] + '</td>';
+            }
+          }
+          table += '</tr>';
+        }
+        table += '</table>';
+        return table;
+      }
+
+      function convertToTable(data) {
+        var len = data.length;
+        var table = '<table class="table table-bordered table-striped table-hover">';
+
+        table += '<tr>';
+        // Set column from key in origin data
+        $.each(data[0], function (key, value) {
+          table += '<th>'+key+'</th>';
+        });
+        table += '</tr>';
+
+        $.each(data, function (key, value) {
+          table += '<tr>';
+          $.each(value, function (key2, value2) {
+            table += '<td>'+value2+'</td>';
+          });
+          table += '</tr>';
+        })
+        table += '</table>';
+
+        return table;
+      }
+
+      // method that reads and process the selected file
+      function upload (e) {
+        if (!browserSupportFileUpload()) {
+            alert('The file APIs are not fully supported in this browser');
+        } else {
+          let data = null;
+          let file = e.target.files[0];
+          let reader = new FileReader();
+          reader.readAsText(file);
+          reader.onload = function (e) {
+            data = $.csv.toObjects(e.target.result);
+            if (data && data.length > 0) {
+              // check duplicate property values for 'id'
+              if (!checkDuplicateId('shop', data) && !checkDateValidation('end_date', data)) {
+                alert('Import data Successfully!');
+                $('#result').html('');
+                $('#result').html(convertToTable(data));
+              } else {
+                alert('Please check the error message and retry it again!');
+              }
+            } else {
+              alert('No data to import.');
+            }
+          };
+          reader.onerror = function() {
+            alert('Unable to read ' + file.fileName);
+          };
+        }
+      }
+
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header class="table-responsive">
+      <h1>Upload csv file and display the content</h1>
+    </header>
+    <section class="center">
+      <fieldset>
+          <legent>Upload your csv file :</legend>
+          <input type="file" class="btn btn-primary" id="fileUpload" name="file-upload" accept=".csv" />
+      </fieldset>
+      <div id="result" class="table-responsive"></div>
+    </section>
+
+    <footer>
+      <p>By Chanmi Lee</p>
+    </footer>
+  </div>
+
+</body>
+</html>
